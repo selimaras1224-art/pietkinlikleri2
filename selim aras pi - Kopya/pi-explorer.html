@@ -1,0 +1,1092 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pi Explorer · Sonsuzluğun Sayısı</title>
+
+  <link rel="icon" type="image/svg+xml" href="public/favicon.svg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+
+  <!-- Tailwind via CDN (build gerekmez) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            space: '#05070f',
+            midnight: '#0b1226',
+            deep: '#0f1b3d',
+            neon: { DEFAULT: '#38e1ff', soft: '#7ef0ff', glow: '#22d3ee' },
+            gold: { DEFAULT: '#f5c84b', soft: '#ffd97a' },
+          },
+          fontFamily: {
+            sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'ui-monospace', 'Menlo', 'monospace'],
+          },
+          boxShadow: {
+            neon: '0 0 24px rgba(56, 225, 255, 0.35)',
+            gold: '0 0 24px rgba(245, 200, 75, 0.35)',
+          },
+          animation: {
+            'scroll-digits': 'scrollDigits 60s linear infinite',
+          },
+          keyframes: {
+            scrollDigits: {
+              '0%': { transform: 'translateY(0)' },
+              '100%': { transform: 'translateY(-50%)' },
+            },
+          },
+        },
+      },
+    };
+  </script>
+
+  <style type="text/tailwindcss">
+    @layer components {
+      .glass-card {
+        @apply relative rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-md;
+        box-shadow:
+          0 1px 0 rgba(255, 255, 255, 0.05) inset,
+          0 30px 60px -30px rgba(0, 0, 0, 0.8);
+      }
+      .glass-card-hover { @apply transition-all duration-300; }
+      .glass-card-hover:hover {
+        @apply border-neon/40;
+        box-shadow:
+          0 1px 0 rgba(255, 255, 255, 0.07) inset,
+          0 30px 60px -20px rgba(34, 211, 238, 0.25);
+      }
+      .section-title { @apply text-3xl sm:text-4xl font-bold tracking-tight text-white; }
+      .section-eyebrow { @apply uppercase tracking-[0.3em] text-xs font-semibold text-neon/80; }
+      .btn-primary {
+        @apply inline-flex items-center justify-center gap-2 rounded-xl px-5 py-2.5 font-medium
+               bg-gradient-to-r from-neon to-cyan-400 text-slate-950 shadow-neon
+               hover:shadow-lg hover:scale-[1.02] active:scale-[0.98]
+               transition-all duration-200 disabled:opacity-50 disabled:pointer-events-none;
+      }
+      .btn-secondary {
+        @apply inline-flex items-center justify-center gap-2 rounded-xl px-5 py-2.5 font-medium
+               border border-white/15 bg-white/5 text-slate-100
+               hover:bg-white/10 hover:border-white/30
+               transition-all duration-200 disabled:opacity-50;
+      }
+      .btn-gold {
+        @apply inline-flex items-center justify-center gap-2 rounded-xl px-5 py-2.5 font-medium
+               bg-gradient-to-r from-gold to-gold-soft text-slate-950 shadow-gold
+               hover:scale-[1.02] active:scale-[0.98] transition-all duration-200;
+      }
+      .input-base {
+        @apply w-full rounded-xl border border-white/15 bg-slate-950/60 px-4 py-3
+               text-slate-100 placeholder:text-slate-500
+               focus:outline-none focus:ring-2 focus:ring-neon/60 focus:border-neon/50
+               transition-all duration-200 font-mono;
+      }
+      .chip {
+        @apply inline-flex items-center gap-1.5 rounded-full border border-white/10
+               bg-white/5 px-3 py-1 text-xs font-mono text-slate-300;
+      }
+    }
+  </style>
+
+  <style>
+    :root { color-scheme: dark; }
+    html, body, #root { min-height: 100%; }
+    body {
+      font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+      background-color: #05070f;
+      background-image:
+        radial-gradient(circle at 15% 10%, rgba(56, 225, 255, 0.08), transparent 45%),
+        radial-gradient(circle at 85% 20%, rgba(245, 200, 75, 0.06), transparent 45%),
+        radial-gradient(circle at 50% 95%, rgba(99, 102, 241, 0.08), transparent 55%);
+      background-attachment: fixed;
+      -webkit-font-smoothing: antialiased;
+      color: #f1f5f9;
+    }
+    ::-webkit-scrollbar { width: 10px; height: 10px; }
+    ::-webkit-scrollbar-track { background: #05070f; }
+    ::-webkit-scrollbar-thumb {
+      background: linear-gradient(180deg, #1e293b, #0f1b3d);
+      border-radius: 8px;
+    }
+    ::-webkit-scrollbar-thumb:hover { background: #22d3ee; }
+    .pi-glow {
+      text-shadow: 0 0 12px rgba(56, 225, 255, 0.6), 0 0 32px rgba(56, 225, 255, 0.25);
+    }
+    .gold-glow {
+      text-shadow: 0 0 12px rgba(245, 200, 75, 0.55), 0 0 32px rgba(245, 200, 75, 0.2);
+    }
+    .loader-ring {
+      width: 32px; height: 32px;
+      border: 3px solid rgba(56,225,255,0.2);
+      border-top-color: #38e1ff;
+      border-radius: 50%;
+      animation: spin 0.9s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .fade-in { animation: fadeIn 0.6s ease both; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+    .reveal { opacity: 0; transform: translateY(24px); transition: opacity .7s ease, transform .7s ease; }
+    .reveal.visible { opacity: 1; transform: translateY(0); }
+    .bounce-soft { animation: bounceSoft 1.6s ease-in-out infinite; }
+    @keyframes bounceSoft { 0%,100% { transform: translateY(0); } 50% { transform: translateY(6px); } }
+  </style>
+
+  <!-- esm.sh import map: tüm React/Framer Motion/Lucide buradan -->
+  <script type="importmap">
+    {
+      "imports": {
+        "react": "https://esm.sh/react@18.3.1",
+        "react/": "https://esm.sh/react@18.3.1/",
+        "react-dom/client": "https://esm.sh/react-dom@18.3.1/client?deps=react@18.3.1",
+        "framer-motion": "https://esm.sh/framer-motion@11.3.19?deps=react@18.3.1,react-dom@18.3.1",
+        "lucide-react": "https://esm.sh/lucide-react@0.427.0?deps=react@18.3.1"
+      }
+    }
+  </script>
+
+  <!-- Babel: tarayıcıda JSX'i derler -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+
+<body class="bg-space text-slate-100">
+  <div id="root">
+    <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:16px;">
+      <div class="loader-ring"></div>
+      <div style="font-family:'JetBrains Mono',monospace;font-size:28px;color:#38e1ff" class="pi-glow">π</div>
+      <div style="color:#94a3b8;font-size:14px">Pi Explorer yükleniyor…</div>
+    </div>
+  </div>
+
+  <!--
+    Tüm uygulama tek bir Babel modülünde.
+    JSX kullanıyoruz; Babel JSX'i React.createElement'a derler.
+    data-type="module" sayesinde import map çalışır (React/Framer Motion/Lucide CDN'den gelir).
+  -->
+  <script type="text/babel" data-type="module" data-presets="react">
+    import React, { useEffect, useMemo, useState, useRef, useCallback } from 'react';
+    import { createRoot } from 'react-dom/client';
+    import { motion, AnimatePresence } from 'framer-motion';
+    import {
+      Sparkles, ArrowDown, Search, Loader2, Calendar, Hash, X,
+      Droplets, Play, Pause, RotateCcw, Zap, Brain, Trophy, Eye, EyeOff, Send,
+      BookOpen, Compass, Sigma, Menu, Github, Heart, Infinity as InfinityIcon
+    } from 'lucide-react';
+
+    /* =====================================================================
+     *  Pi basamaklarını hesaplayan yardımcı
+     *  Machin formülü: π = 16·arctan(1/5) − 4·arctan(1/239)
+     *  BigInt ile ölçeklenmiş tam sayı aritmetiği
+     * =================================================================== */
+    function computePiDigits(numDigits = 1000) {
+      const guard = 20;
+      const scale = 10n ** BigInt(numDigits + guard);
+
+      const arctanInverse = (xInt) => {
+        const x = BigInt(xInt);
+        const xSquared = x * x;
+        let term = scale / x;
+        let sum = 0n;
+        let k = 0n;
+        while (term !== 0n) {
+          const denominator = 2n * k + 1n;
+          if (k % 2n === 0n) sum += term / denominator;
+          else sum -= term / denominator;
+          term = term / xSquared;
+          k += 1n;
+        }
+        return sum;
+      };
+
+      const piScaled = 16n * arctanInverse(5) - 4n * arctanInverse(239);
+      const piString = piScaled.toString();
+      return piString.slice(0, numDigits + 1); // "3" + N basamak
+    }
+
+    /* =====================================================================
+     *  PiBackgroundAnimation — Hero arka planı
+     * =================================================================== */
+    function PiBackgroundAnimation({ digits }) {
+      const columns = useMemo(() => {
+        if (!digits) return [];
+        const colCount = 12;
+        const chunkSize = Math.max(120, Math.floor(digits.length / colCount));
+        return Array.from({ length: colCount }, (_, i) => {
+          const start = (i * chunkSize) % Math.max(1, digits.length - chunkSize);
+          const slice = digits.slice(start, start + chunkSize);
+          return slice + slice;
+        });
+      }, [digits]);
+
+      return (
+        <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
+          <div className="absolute inset-0 bg-gradient-to-b from-space via-transparent to-space z-10" />
+          <div className="absolute inset-0 bg-gradient-to-r from-space via-transparent to-space z-10" />
+          <div className="absolute inset-0 grid grid-cols-6 md:grid-cols-12 gap-2 px-2 opacity-[0.10]">
+            {columns.map((col, idx) => (
+              <div key={idx} className="overflow-hidden h-full">
+                <div
+                  className="font-mono text-[11px] md:text-sm leading-relaxed text-neon whitespace-pre-wrap break-all animate-scroll-digits"
+                  style={{
+                    animationDuration: `${40 + (idx % 5) * 12}s`,
+                    animationDelay: `${idx * -3}s`,
+                  }}
+                >
+                  {col.split('').map((d, i) => <span key={i}>{d}</span>)}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    /* =====================================================================
+     *  Navbar
+     * =================================================================== */
+    const NAV_LINKS = [
+      { href: '#hero', label: 'Ana Sayfa' },
+      { href: '#about-pi', label: 'Pi Nedir?' },
+      { href: '#find-yourself', label: "Pi'de Kendini Bul" },
+      { href: '#monte-carlo', label: 'Monte Carlo' },
+      { href: '#memory-game', label: 'Hafıza Oyunu' },
+    ];
+
+    function Navbar() {
+      const [scrolled, setScrolled] = useState(false);
+      const [open, setOpen] = useState(false);
+      useEffect(() => {
+        const onScroll = () => setScrolled(window.scrollY > 30);
+        window.addEventListener('scroll', onScroll);
+        return () => window.removeEventListener('scroll', onScroll);
+      }, []);
+      return (
+        <header className={`fixed inset-x-0 top-0 z-50 transition-all duration-300 ${
+          scrolled ? 'bg-space/80 backdrop-blur-lg border-b border-white/10' : 'bg-transparent'
+        }`}>
+          <nav className="mx-auto flex max-w-6xl items-center justify-between px-6 py-3">
+            <a href="#hero" className="flex items-center gap-2 group">
+              <span className="font-mono text-2xl font-bold text-neon pi-glow group-hover:scale-110 transition-transform">π</span>
+              <span className="font-semibold tracking-tight text-white">Pi Explorer</span>
+            </a>
+            <ul className="hidden md:flex items-center gap-1">
+              {NAV_LINKS.map((l) => (
+                <li key={l.href}>
+                  <a href={l.href} className="rounded-lg px-3 py-2 text-sm text-slate-300 hover:text-neon hover:bg-white/5 transition-colors">
+                    {l.label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+            <button className="md:hidden text-slate-200" onClick={() => setOpen(v => !v)} aria-label="Menü">
+              {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            </button>
+          </nav>
+          {open && (
+            <div className="md:hidden border-t border-white/10 bg-space/95 backdrop-blur-lg">
+              <ul className="px-6 py-3 space-y-1">
+                {NAV_LINKS.map((l) => (
+                  <li key={l.href}>
+                    <a href={l.href} onClick={() => setOpen(false)} className="block rounded-lg px-3 py-2 text-sm text-slate-300 hover:text-neon hover:bg-white/5">
+                      {l.label}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </header>
+      );
+    }
+
+    /* =====================================================================
+     *  Hero
+     * =================================================================== */
+    const fadeUp = {
+      hidden: { opacity: 0, y: 24 },
+      show: (i = 0) => ({
+        opacity: 1, y: 0,
+        transition: { delay: 0.1 + i * 0.1, duration: 0.7, ease: 'easeOut' },
+      }),
+    };
+
+    function Hero({ digits, onCtaClick }) {
+      return (
+        <section id="hero" className="relative isolate flex min-h-[100vh] items-center justify-center overflow-hidden">
+          <PiBackgroundAnimation digits={digits} />
+          <div className="relative z-20 mx-auto max-w-5xl px-6 text-center pt-20">
+            <motion.div initial="hidden" animate="show" variants={fadeUp} custom={0}
+              className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-xs font-medium text-slate-300 backdrop-blur-md">
+              <Sparkles className="h-3.5 w-3.5 text-gold" />
+              Pi Günü Etkileşimli Keşif Platformu
+            </motion.div>
+
+            <motion.h1 initial="hidden" animate="show" variants={fadeUp} custom={1}
+              className="font-sans text-5xl sm:text-6xl md:text-7xl font-extrabold tracking-tight text-white">
+              Sonsuzluğun Sayısı
+              <span className="block mt-2">
+                <span className="pi-glow font-mono text-neon">π</span>{' '}
+                <span className="text-slate-400 font-mono text-4xl sm:text-5xl md:text-6xl">= 3.14159…</span>
+              </span>
+            </motion.h1>
+
+            <motion.p initial="hidden" animate="show" variants={fadeUp} custom={2}
+              className="mx-auto mt-6 max-w-2xl text-base sm:text-lg leading-relaxed text-slate-300">
+              Pi (π), bir çemberin çevresinin çapına oranıdır. İrrasyonel ve aşkın bir sayı olarak basamakları{' '}
+              <span className="font-mono text-neon">sonsuza kadar tekrarsız</span> devam eder.
+              Bu platformda Pi'yi arayacak, deneyle hesaplayacak ve basamaklarını ezberleyeceksin.
+            </motion.p>
+
+            <motion.div initial="hidden" animate="show" variants={fadeUp} custom={3}
+              className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-3">
+              <button onClick={onCtaClick} className="btn-primary">
+                <InfinityIcon className="h-4 w-4" /> Keşfetmeye Başla
+              </button>
+              <a href="#about-pi" className="btn-secondary">Pi Hakkında</a>
+            </motion.div>
+
+            {/* Okul projesi künyesi */}
+            <motion.div initial="hidden" animate="show" variants={fadeUp} custom={4}
+              className="mx-auto mt-12 max-w-2xl">
+              <div className="glass-card glass-card-hover px-6 py-5 text-left">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div>
+                    <div className="text-[10px] uppercase tracking-[0.3em] text-gold">
+                      Matematik Projesi
+                    </div>
+                    <div className="mt-1 text-base sm:text-lg font-semibold text-white">
+                      Selim Aras OLGUN <span className="text-slate-500 font-normal">&</span> Uygar CANPOLAT
+                    </div>
+                  </div>
+                  <div className="text-xs text-slate-400 sm:text-right">
+                    <div><span className="text-slate-500">Ders:</span> Matematik</div>
+                    <div><span className="text-slate-500">Konu:</span> π Hakkında Bilgiler ve π'nin Tarihi</div>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+
+            <motion.div initial="hidden" animate="show" variants={fadeUp} custom={5}
+              className="mt-10 flex justify-center">
+              <a href="#find-yourself" className="group flex flex-col items-center gap-2 text-slate-400 hover:text-neon transition-colors">
+                <span className="text-xs uppercase tracking-[0.3em]">Aşağı kaydır</span>
+                <ArrowDown className="h-4 w-4 bounce-soft" />
+              </a>
+            </motion.div>
+          </div>
+        </section>
+      );
+    }
+
+    /* =====================================================================
+     *  Section shell (eyebrow + başlık + açıklama + içerik)
+     * =================================================================== */
+    function Section({ id, eyebrow, title, description, icon: Icon, accent = 'neon', children }) {
+      const accentClass = accent === 'gold' ? 'text-gold gold-glow' : 'text-neon pi-glow';
+      return (
+        <section id={id} className="relative py-20 sm:py-28 scroll-mt-20">
+          <div className="mx-auto max-w-6xl px-6">
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: '-100px' }}
+              transition={{ duration: 0.6, ease: 'easeOut' }}
+              className="mb-10 text-center"
+            >
+              <div className="section-eyebrow inline-flex items-center gap-2">
+                {Icon && <Icon className={`h-4 w-4 ${accentClass}`} />}
+                {eyebrow}
+              </div>
+              <h2 className="section-title mt-3">{title}</h2>
+              {description && (
+                <p className="mx-auto mt-4 max-w-2xl text-slate-400 leading-relaxed">{description}</p>
+              )}
+            </motion.div>
+            <motion.div
+              initial={{ opacity: 0, y: 24 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: '-80px' }}
+              transition={{ duration: 0.6, delay: 0.1, ease: 'easeOut' }}
+            >
+              {children}
+            </motion.div>
+          </div>
+        </section>
+      );
+    }
+
+    /* =====================================================================
+     *  AboutPi — kısa tanışma kartları
+     * =================================================================== */
+    const FACTS = [
+      { icon: Compass, title: 'Geometrik Anlamı',
+        text: "Bir çemberin çevresinin çapına oranıdır: π = C / d. Bu oran çemberin büyüklüğüne göre değişmez — evrensel bir sabittir." },
+      { icon: InfinityIcon, title: 'İrrasyonel ve Aşkın',
+        text: 'İki tam sayının oranı olarak yazılamaz. Basamakları sonsuza kadar devam eder, periyodik tekrar göstermez.' },
+      { icon: Sigma, title: 'Matematiğin Her Yerinde',
+        text: 'Trigonometriden olasılığa, Fourier dönüşümünden karmaşık analize pek çok yerde Pi karşımıza çıkar.' },
+      { icon: BookOpen, title: 'Binlerce Yıllık Hikâye',
+        text: "Antik Babil ve Mısır'dan Arşimet'e, Ramanujan'a — Pi, matematik tarihinin en eski sorularından biri." },
+    ];
+
+    function AboutPi() {
+      return (
+        <Section id="about-pi" eyebrow="Tanışma" title="Pi (π) Nedir?"
+          description="Pi sayısı yalnızca bir oran değil; sonsuzluğun, evrensel düzenin ve matematiğin sembolüdür."
+          icon={BookOpen}>
+          <div className="grid sm:grid-cols-2 gap-4">
+            {FACTS.map((f) => (
+              <div key={f.title} className="glass-card glass-card-hover p-6 flex gap-4">
+                <div className="shrink-0">
+                  <div className="h-10 w-10 rounded-xl bg-neon/10 border border-neon/30 flex items-center justify-center">
+                    <f.icon className="h-5 w-5 text-neon" />
+                  </div>
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-white">{f.title}</h3>
+                  <p className="mt-1 text-sm text-slate-400 leading-relaxed">{f.text}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Section>
+      );
+    }
+
+    /* =====================================================================
+     *  FindYourselfInPi — arama simülasyonu
+     * =================================================================== */
+    function FindYourselfInPi({ digits }) {
+      const [rawInput, setRawInput] = useState('');
+      const [mode, setMode] = useState('date');
+      const [searching, setSearching] = useState(false);
+      const [result, setResult] = useState(null);
+
+      const decimalPart = useMemo(() => (digits ? digits.slice(1) : ''), [digits]);
+      const totalDigits = decimalPart.length;
+      const normalized = useMemo(() => rawInput.replace(/\D/g, ''), [rawInput]);
+
+      const placeholder = mode === 'date'
+        ? 'GG/AA/YYYY  (örn. 21/03/1990)'
+        : 'Şanslı sayın  (örn. 42)';
+
+      /**
+       * Pi'de arama stratejisi:
+       *  1) Önce TAM eşleşme dene (kullanıcının girdiği dizinin aynısı)
+       *  2) Bulunamazsa, girdinin en uzun alt-dizisini ara
+       *     (8 haneli tarihler 10k basamakta neredeyse hiç bulunmaz —
+       *      4 haneli yıl ya da 6 haneli AY+YIL parçası genelde bulunur)
+       *
+       * Aynı uzunlukta birden fazla aday varsa, ilk geçen kullanılır.
+       */
+      const findBestMatch = (input, pool) => {
+        // Önce tam eşleşme
+        const fullIdx = pool.indexOf(input);
+        if (fullIdx !== -1) {
+          return { exact: true, sub: input, index: fullIdx, subStart: 0 };
+        }
+        // Sonra en uzun alt-dizi (her uzunluk için, soldan sağa kaydır)
+        for (let len = input.length - 1; len >= 2; len--) {
+          for (let s = 0; s + len <= input.length; s++) {
+            const sub = input.slice(s, s + len);
+            const idx = pool.indexOf(sub);
+            if (idx !== -1) {
+              return { exact: false, sub, index: idx, subStart: s };
+            }
+          }
+        }
+        return null;
+      };
+
+      const handleSearch = () => {
+        if (!normalized || !decimalPart) return;
+        setSearching(true);
+        setResult(null);
+        setTimeout(() => {
+          const match = findBestMatch(normalized, decimalPart);
+          if (!match) {
+            setResult({ found: false, query: normalized });
+          } else {
+            const { exact, sub, index, subStart } = match;
+            setResult({
+              found: true,
+              exact,
+              query: normalized,
+              sub,
+              subStart,
+              position: index + 1,
+              contextBefore: decimalPart.slice(Math.max(0, index - 30), index),
+              match: decimalPart.slice(index, index + sub.length),
+              contextAfter: decimalPart.slice(index + sub.length, index + sub.length + 30),
+            });
+          }
+          setSearching(false);
+        }, 450);
+      };
+
+      const handleKey = (e) => { if (e.key === 'Enter') handleSearch(); };
+
+      return (
+        <Section id="find-yourself" eyebrow="Etkinlik 01" title="Pi'de Kendini Bul"
+          description={`Doğum tarihin ya da şanslı sayın, Pi'nin ilk ${totalDigits.toLocaleString('tr-TR')} basamağı içinde nerede gizleniyor?`}
+          icon={Search}>
+          <div className="glass-card glass-card-hover p-6 sm:p-8">
+            <div className="mb-5 inline-flex rounded-xl border border-white/10 bg-slate-950/50 p-1 text-sm">
+              <button onClick={() => setMode('date')}
+                className={`flex items-center gap-2 rounded-lg px-3 py-1.5 transition-all ${
+                  mode === 'date' ? 'bg-neon/20 text-neon' : 'text-slate-400 hover:text-slate-200'}`}>
+                <Calendar className="h-4 w-4" /> Tarih
+              </button>
+              <button onClick={() => setMode('number')}
+                className={`flex items-center gap-2 rounded-lg px-3 py-1.5 transition-all ${
+                  mode === 'number' ? 'bg-neon/20 text-neon' : 'text-slate-400 hover:text-slate-200'}`}>
+                <Hash className="h-4 w-4" /> Sayı
+              </button>
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-3">
+              <div className="relative flex-1">
+                <input type="text" inputMode="numeric" value={rawInput}
+                  onChange={(e) => setRawInput(e.target.value)} onKeyDown={handleKey}
+                  placeholder={placeholder} className="input-base pr-10" maxLength={20} />
+                {rawInput && (
+                  <button onClick={() => { setRawInput(''); setResult(null); }}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-200"
+                    aria-label="Temizle">
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+              <button onClick={handleSearch} disabled={!normalized || searching || !digits} className="btn-primary whitespace-nowrap">
+                {searching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                {searching ? 'Aranıyor…' : "Pi'de Ara"}
+              </button>
+            </div>
+
+            {normalized && (
+              <div className="mt-3 text-xs text-slate-400 font-mono">
+                Aranan dizi: <span className="text-neon">{normalized}</span> ({normalized.length} basamak)
+              </div>
+            )}
+
+            <AnimatePresence mode="wait">
+              {result && (
+                <motion.div key={result.found ? 'found' : 'not-found'}
+                  initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.35 }} className="mt-6">
+                  {result.found ? (
+                    <div className={`rounded-2xl border p-5 sm:p-6 ${
+                      result.exact
+                        ? 'border-neon/30 bg-neon/5'
+                        : 'border-gold/30 bg-gold/5'
+                    }`}>
+                      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                        <span className="font-mono text-3xl sm:text-4xl text-gold gold-glow">
+                          #{result.position.toLocaleString('tr-TR')}
+                        </span>
+                        <span className="text-slate-300">
+                          basamak ile ondalıktan sonra{result.exact ? ' ilk kez' : ''} geçiyor.
+                        </span>
+                      </div>
+
+                      {result.exact ? (
+                        <p className="mt-2 text-sm text-slate-400">
+                          Pi'nin sonsuz akışında senin imzan tam burada gizliydi.
+                        </p>
+                      ) : (
+                        <div className="mt-3 text-sm text-slate-300">
+                          <p>
+                            Tam dizi <span className="font-mono text-amber-200">{result.query}</span>{' '}
+                            ilk {totalDigits.toLocaleString('tr-TR')} basamakta bulunamadı —{' '}
+                            <span className="text-slate-400 text-xs">(8 haneli bir sayı için bu beklenen bir durum: gerçek "Pi-search" siteleri milyarlarca basamak kullanır.)</span>
+                          </p>
+                          <p className="mt-2">
+                            Ama girdinin{' '}
+                            <span className="font-mono text-gold">"{result.sub}"</span>{' '}
+                            ({result.sub.length} basamak) parçası burada geçiyor!
+                          </p>
+                        </div>
+                      )}
+
+                      <div className="mt-5 rounded-xl bg-slate-950/70 border border-white/10 p-4 font-mono text-sm sm:text-base leading-relaxed break-all">
+                        <span className="text-slate-500">…{result.contextBefore}</span>
+                        <span className={`mx-0.5 rounded-md px-1 py-0.5 font-bold ${
+                          result.exact ? 'bg-neon/20 text-neon' : 'bg-gold/20 text-gold'
+                        }`}>{result.match}</span>
+                        <span className="text-slate-500">{result.contextAfter}…</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="rounded-2xl border border-amber-400/30 bg-amber-400/5 p-5">
+                      <p className="text-amber-200">
+                        İlk <span className="font-mono">{totalDigits.toLocaleString('tr-TR')}</span> basamak içinde{' '}
+                        <span className="font-mono text-amber-100">{result.query}</span> veya
+                        herhangi bir alt-dizisi bulunamadı. Çok kısa veya çok özel bir sayı olabilir.
+                      </p>
+                    </div>
+                  )}
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            <div className="mt-6 flex flex-wrap items-center gap-2 text-xs">
+              <span className="chip">π · ilk {totalDigits.toLocaleString('tr-TR')} basamak</span>
+              <span className="chip">BigInt ile tarayıcıda hesaplandı</span>
+              <span className="chip">Yerel arama · veri kaydedilmez</span>
+            </div>
+          </div>
+        </Section>
+      );
+    }
+
+    /* =====================================================================
+     *  MonteCarloSimulation — canvas tabanlı yağmur damlası simülasyonu
+     *  π ≈ 4 · (daire içine düşen nokta sayısı) / (toplam nokta sayısı)
+     * =================================================================== */
+    function MonteCarloSimulation() {
+      const canvasRef = useRef(null);
+      const [inside, setInside] = useState(0);
+      const [total, setTotal] = useState(0);
+      const [isRunning, setIsRunning] = useState(false);
+      const [speed, setSpeed] = useState(50);
+      const animRef = useRef(null);
+
+      const CANVAS_SIZE = 480;
+
+      const drawFrame = useCallback(() => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        const w = canvas.width, h = canvas.height;
+        ctx.clearRect(0, 0, w, h);
+
+        // Hafif grid
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.04)';
+        ctx.lineWidth = 1;
+        const step = w / 10;
+        for (let i = 1; i < 10; i++) {
+          ctx.beginPath(); ctx.moveTo(i*step, 0); ctx.lineTo(i*step, h); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(0, i*step); ctx.lineTo(w, i*step); ctx.stroke();
+        }
+        // Kare
+        ctx.strokeStyle = 'rgba(245, 200, 75, 0.6)';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(1, 1, w - 2, h - 2);
+        // Daire
+        ctx.strokeStyle = 'rgba(56, 225, 255, 0.7)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(w/2, h/2, w/2 - 1, 0, Math.PI * 2);
+        ctx.stroke();
+      }, []);
+
+      const handleReset = useCallback(() => {
+        setIsRunning(false);
+        setInside(0);
+        setTotal(0);
+        drawFrame();
+      }, [drawFrame]);
+
+      useEffect(() => { drawFrame(); }, [drawFrame]);
+
+      const throwPoints = useCallback((count) => {
+        const canvas = canvasRef.current;
+        if (!canvas) return { newInside: 0, newTotal: 0 };
+        const ctx = canvas.getContext('2d');
+        const w = canvas.width, h = canvas.height;
+        const cx = w/2, cy = h/2, r = w/2 - 1, rSq = r*r;
+        let localInside = 0;
+        for (let i = 0; i < count; i++) {
+          const x = Math.random() * w;
+          const y = Math.random() * h;
+          const dx = x - cx, dy = y - cy;
+          const inCircle = dx*dx + dy*dy <= rSq;
+          if (inCircle) { localInside++; ctx.fillStyle = 'rgba(56, 225, 255, 0.85)'; }
+          else { ctx.fillStyle = 'rgba(245, 200, 75, 0.85)'; }
+          ctx.beginPath();
+          ctx.arc(x, y, 1.3, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        return { newInside: localInside, newTotal: count };
+      }, []);
+
+      const handleDrop = useCallback(() => {
+        const { newInside, newTotal } = throwPoints(speed);
+        setInside(prev => prev + newInside);
+        setTotal(prev => prev + newTotal);
+      }, [throwPoints, speed]);
+
+      useEffect(() => {
+        if (!isRunning) return;
+        const tick = () => {
+          const { newInside, newTotal } = throwPoints(speed);
+          setInside(prev => prev + newInside);
+          setTotal(prev => prev + newTotal);
+          animRef.current = requestAnimationFrame(tick);
+        };
+        animRef.current = requestAnimationFrame(tick);
+        return () => cancelAnimationFrame(animRef.current);
+      }, [isRunning, speed, throwPoints]);
+
+      const piEstimate = total > 0 ? (4 * inside) / total : 0;
+      const realPi = Math.PI;
+      const error = total > 0 ? Math.abs(piEstimate - realPi) : 0;
+      const errorPct = total > 0 ? (error / realPi) * 100 : 0;
+
+      const Stat = ({ label, value, accent }) => (
+        <div className="flex items-center justify-between border-b border-white/5 pb-2">
+          <span className="text-slate-400">{label}</span>
+          <span className={`font-mono font-semibold ${accent}`}>{value}</span>
+        </div>
+      );
+
+      return (
+        <Section id="monte-carlo" eyebrow="Etkinlik 02" title="Yağmur Damlaları ile Pi'yi Hesapla"
+          description="Kare içindeki daireye rastgele noktalar at. Daireye düşenlerin oranı, π'nin değerini ortaya çıkarır."
+          icon={Droplets} accent="gold">
+          <div className="grid lg:grid-cols-[1fr,360px] gap-6">
+            <div className="glass-card p-4 sm:p-6">
+              <div className="relative mx-auto" style={{ maxWidth: CANVAS_SIZE }}>
+                <canvas ref={canvasRef} width={CANVAS_SIZE} height={CANVAS_SIZE}
+                  className="w-full h-auto rounded-xl bg-slate-950/60 border border-white/5" />
+                {total === 0 && (
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <div className="rounded-xl bg-slate-950/70 border border-white/10 px-4 py-2 text-sm text-slate-400">
+                      "Nokta At" ile başla
+                    </div>
+                  </div>
+                )}
+              </div>
+              <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
+                <button onClick={handleDrop} className="btn-gold">
+                  <Droplets className="h-4 w-4" /> Nokta At ({speed})
+                </button>
+                <button onClick={() => setIsRunning(v => !v)} className="btn-secondary">
+                  {isRunning ? (<><Pause className="h-4 w-4" /> Duraklat</>) : (<><Play className="h-4 w-4" /> Otomatik</>)}
+                </button>
+                <button onClick={handleReset} className="btn-secondary">
+                  <RotateCcw className="h-4 w-4" /> Sıfırla
+                </button>
+              </div>
+              <div className="mt-4 flex items-center gap-3 justify-center text-xs text-slate-400">
+                <Zap className="h-3.5 w-3.5 text-neon" />
+                <span>Tık başına nokta:</span>
+                <input type="range" min="10" max="500" step="10" value={speed}
+                  onChange={(e) => setSpeed(Number(e.target.value))}
+                  className="accent-neon w-40" />
+                <span className="font-mono text-slate-300 w-10 text-right">{speed}</span>
+              </div>
+            </div>
+
+            <div className="glass-card p-6 flex flex-col">
+              <div className="section-eyebrow">Canlı Tahmin</div>
+              <motion.div key={piEstimate.toFixed(6)}
+                initial={{ opacity: 0.5, y: 4 }} animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.2 }}
+                className="mt-2 font-mono text-5xl font-bold text-neon pi-glow break-all">
+                {total > 0 ? piEstimate.toFixed(6) : '—'}
+              </motion.div>
+              <div className="mt-1 text-xs text-slate-500 font-mono">Gerçek π = {realPi.toFixed(10)}</div>
+              <div className="mt-6 space-y-3 text-sm">
+                <Stat label="Toplam nokta" value={total.toLocaleString('tr-TR')} accent="text-slate-200" />
+                <Stat label="Daire içine düşen" value={inside.toLocaleString('tr-TR')} accent="text-neon" />
+                <Stat label="Daire dışına düşen" value={(total - inside).toLocaleString('tr-TR')} accent="text-gold" />
+                <Stat label="Mutlak hata" value={total > 0 ? error.toFixed(6) : '—'} accent="text-slate-300" />
+                <Stat label="Hata %" value={total > 0 ? `${errorPct.toFixed(3)}%` : '—'} accent="text-slate-300" />
+              </div>
+              <div className="mt-6 rounded-xl border border-white/10 bg-slate-950/60 p-4 font-mono text-xs text-slate-300 leading-relaxed">
+                <div className="text-slate-500 mb-1">// formül</div>
+                π ≈ 4 · (<span className="text-neon">{inside.toLocaleString('tr-TR')}</span> / <span className="text-gold">{total.toLocaleString('tr-TR') || '0'}</span>)
+                <div className="mt-2 text-slate-500">
+                  {total > 0 && (<>= {(4 * inside).toLocaleString('tr-TR')} ÷ {total.toLocaleString('tr-TR')} = <span className="text-slate-100">{piEstimate.toFixed(6)}</span></>)}
+                </div>
+              </div>
+            </div>
+          </div>
+        </Section>
+      );
+    }
+
+    /* =====================================================================
+     *  MemoryGame — Simon Says tarzı basamak ezberleme
+     * =================================================================== */
+    const HIGH_SCORE_KEY = 'pi-memory-high-score';
+
+    function MemoryGame({ digits }) {
+      const [round, setRound] = useState(0);
+      const [phase, setPhase] = useState('idle'); // idle | preview | input | success | fail
+      const [userInput, setUserInput] = useState('');
+      const [highScore, setHighScore] = useState(0);
+      const [showHint, setShowHint] = useState(false);
+
+      useEffect(() => {
+        try {
+          const saved = Number(localStorage.getItem(HIGH_SCORE_KEY) || 0);
+          if (!Number.isNaN(saved)) setHighScore(saved);
+        } catch (_) {}
+      }, []);
+
+      const targetSequence = useMemo(() => {
+        if (!digits || round === 0) return '';
+        const intPart = digits[0];
+        const decimalPart = digits.slice(1, 1 + round);
+        return `${intPart}.${decimalPart}`;
+      }, [digits, round]);
+
+      const expectedDigits = useMemo(() => targetSequence.replace('.', ''), [targetSequence]);
+
+      const startGame = () => { setRound(1); setUserInput(''); setPhase('preview'); };
+      const handleReset = () => { setRound(0); setUserInput(''); setPhase('idle'); };
+
+      useEffect(() => {
+        if (phase !== 'preview') return;
+        const visibleMs = 1200 + round * 180;
+        const t = setTimeout(() => { setPhase('input'); setUserInput(''); }, visibleMs);
+        return () => clearTimeout(t);
+      }, [phase, round]);
+
+      const submitAnswer = () => {
+        const clean = userInput.replace(/\D/g, '');
+        if (clean === expectedDigits) {
+          setPhase('success');
+          if (round > highScore) {
+            setHighScore(round);
+            try { localStorage.setItem(HIGH_SCORE_KEY, String(round)); } catch (_) {}
+          }
+          setTimeout(() => { setRound(r => r + 1); setPhase('preview'); }, 900);
+        } else {
+          setPhase('fail');
+        }
+      };
+
+      const handleKey = (e) => { if (e.key === 'Enter') submitAnswer(); };
+
+      return (
+        <Section id="memory-game" eyebrow="Etkinlik 03" title="Pi Hafıza Oyunu"
+          description="Pi'nin basamakları her turda bir uzar. Sistem diziyi kısa bir an gösterir, sonra gizler — sıra sende."
+          icon={Brain}>
+          <div className="grid lg:grid-cols-[1fr,320px] gap-6">
+            <div className="glass-card p-6 sm:p-8 flex flex-col min-h-[360px]">
+              {phase === 'idle' && (
+                <div className="flex flex-1 flex-col items-center justify-center text-center gap-4">
+                  <Brain className="h-12 w-12 text-neon" />
+                  <p className="text-slate-300 max-w-md">
+                    Hazır olduğunda başlat. Her turda π'nin bir basamağı daha eklenecek.
+                  </p>
+                  <button onClick={startGame} className="btn-primary">
+                    <Brain className="h-4 w-4" /> Oyuna Başla
+                  </button>
+                </div>
+              )}
+
+              {phase !== 'idle' && (
+                <>
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="text-xs uppercase tracking-[0.3em] text-slate-500">Tur {round}</div>
+                    <button onClick={() => setShowHint(v => !v)}
+                      className="text-xs text-slate-400 hover:text-neon flex items-center gap-1.5">
+                      {showHint ? (<><EyeOff className="h-3.5 w-3.5" /> İpucunu gizle</>) : (<><Eye className="h-3.5 w-3.5" /> İpucu göster</>)}
+                    </button>
+                  </div>
+
+                  <div className="flex-1 flex flex-col items-center justify-center gap-6">
+                    <AnimatePresence mode="wait">
+                      {phase === 'preview' && (
+                        <motion.div key="preview" initial={{ opacity: 0, scale: 0.95 }}
+                          animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
+                          className="text-center">
+                          <div className="text-xs uppercase tracking-[0.3em] text-neon mb-3">Ezberle</div>
+                          <div className="font-mono text-4xl sm:text-5xl md:text-6xl font-bold text-white pi-glow break-all">
+                            {targetSequence}
+                          </div>
+                        </motion.div>
+                      )}
+                      {phase === 'input' && (
+                        <motion.div key="input" initial={{ opacity: 0, y: 8 }}
+                          animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
+                          className="w-full max-w-md text-center">
+                          <div className="text-xs uppercase tracking-[0.3em] text-slate-400 mb-3">Şimdi sıra sende</div>
+                          <input autoFocus type="text" inputMode="numeric" value={userInput}
+                            onChange={(e) => setUserInput(e.target.value)} onKeyDown={handleKey}
+                            placeholder={`örn. ${expectedDigits[0]}.${'•'.repeat(round)}`}
+                            className="input-base text-center text-2xl sm:text-3xl"
+                            maxLength={expectedDigits.length + 4} />
+                          <button onClick={submitAnswer} disabled={!userInput} className="btn-primary mt-4">
+                            <Send className="h-4 w-4" /> Onayla
+                          </button>
+                          {showHint && (
+                            <div className="mt-4 font-mono text-sm text-slate-500">ipucu: {targetSequence}</div>
+                          )}
+                        </motion.div>
+                      )}
+                      {phase === 'success' && (
+                        <motion.div key="success" initial={{ opacity: 0, scale: 0.9 }}
+                          animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} className="text-center">
+                          <div className="font-mono text-4xl sm:text-5xl font-bold text-neon pi-glow">✓ {targetSequence}</div>
+                          <div className="mt-2 text-slate-400">Mükemmel — sıradaki tur geliyor…</div>
+                        </motion.div>
+                      )}
+                      {phase === 'fail' && (
+                        <motion.div key="fail" initial={{ opacity: 0, scale: 0.9 }}
+                          animate={{ opacity: 1, scale: 1 }} className="text-center">
+                          <div className="text-xs uppercase tracking-[0.3em] text-amber-300 mb-2">Tur sona erdi</div>
+                          <div className="font-mono text-2xl sm:text-3xl text-slate-200 break-all">
+                            Doğru cevap: <span className="text-gold gold-glow">{targetSequence}</span>
+                          </div>
+                          <div className="mt-1 text-sm text-slate-400 font-mono">
+                            Senin cevabın: <span className="text-amber-300">{userInput || '(boş)'}</span>
+                          </div>
+                          <div className="mt-4 text-slate-300">
+                            Ulaştığın seviye: <span className="font-mono text-neon">{round - 1}</span> basamak
+                          </div>
+                          <button onClick={handleReset} className="btn-primary mt-5">
+                            <RotateCcw className="h-4 w-4" /> Yeniden Dene
+                          </button>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                </>
+              )}
+            </div>
+
+            <div className="glass-card p-6 space-y-5">
+              <div>
+                <div className="section-eyebrow">Şu anki tur</div>
+                <div className="mt-1 font-mono text-3xl text-white">{round || '—'}</div>
+                <div className="text-xs text-slate-500">
+                  {round > 0 ? `${round} basamak ezberlemen gerekiyor` : 'Henüz başlanmadı'}
+                </div>
+              </div>
+              <div className="border-t border-white/10 pt-5">
+                <div className="section-eyebrow flex items-center gap-2">
+                  <Trophy className="h-4 w-4 text-gold" /> Rekor
+                </div>
+                <div className="mt-1 font-mono text-3xl text-gold gold-glow">{highScore}</div>
+                <div className="text-xs text-slate-500">
+                  {highScore > 0 ? `${highScore} basamağı doğru hatırladın` : 'Henüz rekor yok'}
+                </div>
+              </div>
+              <div className="border-t border-white/10 pt-5 space-y-2 text-sm text-slate-400 leading-relaxed">
+                <p><span className="text-slate-200 font-medium">Nasıl oynanır?</span></p>
+                <ol className="list-decimal pl-5 space-y-1">
+                  <li>Dizi bir an gösterilir.</li>
+                  <li>Dizi gizlenir, basamakları sırayla yaz.</li>
+                  <li>Doğruysa bir basamak daha eklenir.</li>
+                  <li>Yanlışsa oyun biter — rekorun kaydedilir.</li>
+                </ol>
+              </div>
+              {round > 0 && (
+                <button onClick={handleReset} className="btn-secondary w-full">
+                  <RotateCcw className="h-4 w-4" /> Oyunu Sıfırla
+                </button>
+              )}
+            </div>
+          </div>
+        </Section>
+      );
+    }
+
+    /* =====================================================================
+     *  Footer
+     * =================================================================== */
+    function Footer() {
+      return (
+        <footer className="relative border-t border-white/10 mt-10">
+          <div className="mx-auto max-w-6xl px-6 py-10 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-2 text-sm text-slate-400">
+              <span className="font-mono text-neon pi-glow">π</span>
+              <span>Pi Explorer · Sonsuzluğun Sayısı</span>
+            </div>
+            <div className="flex items-center gap-2 text-xs text-slate-500">
+              <Heart className="h-3.5 w-3.5 text-gold" />
+              Eğitim amaçlı, açık kaynaklı bir keşif uygulaması
+            </div>
+            <a href="https://github.com/" target="_blank" rel="noreferrer"
+              className="text-slate-400 hover:text-neon transition-colors" aria-label="GitHub">
+              <Github className="h-5 w-5" />
+            </a>
+          </div>
+        </footer>
+      );
+    }
+
+    /* =====================================================================
+     *  App
+     * =================================================================== */
+    const PI_DIGIT_COUNT = 10000;
+
+    function App() {
+      const [digits, setDigits] = useState(null);
+      const [error, setError] = useState(null);
+
+      useEffect(() => {
+        const t = setTimeout(() => {
+          try {
+            const result = computePiDigits(PI_DIGIT_COUNT);
+            setDigits(result);
+          } catch (e) {
+            console.error(e);
+            setError('Pi basamakları hesaplanamadı.');
+          }
+        }, 50);
+        return () => clearTimeout(t);
+      }, []);
+
+      const handleScrollToFirst = () => {
+        document.getElementById('find-yourself')?.scrollIntoView({ behavior: 'smooth' });
+      };
+
+      if (error) {
+        return (
+          <div className="min-h-screen flex items-center justify-center">
+            <div className="glass-card p-8 max-w-md text-center">
+              <p className="text-amber-300">{error}</p>
+            </div>
+          </div>
+        );
+      }
+
+      if (!digits) {
+        return (
+          <div className="min-h-screen flex items-center justify-center">
+            <div className="flex flex-col items-center gap-4 text-center">
+              <div className="loader-ring"></div>
+              <div>
+                <div className="font-mono text-3xl text-neon pi-glow">π</div>
+                <p className="mt-2 text-slate-400 text-sm">
+                  İlk {PI_DIGIT_COUNT.toLocaleString('tr-TR')} basamak hesaplanıyor…
+                </p>
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      return (
+        <div className="min-h-screen">
+          <Navbar />
+          <main>
+            <Hero digits={digits} onCtaClick={handleScrollToFirst} />
+            <AboutPi />
+            <FindYourselfInPi digits={digits} />
+            <MonteCarloSimulation />
+            <MemoryGame digits={digits} />
+          </main>
+          <Footer />
+        </div>
+      );
+    }
+
+    /* =====================================================================
+     *  Bootstrap
+     * =================================================================== */
+    const root = createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
